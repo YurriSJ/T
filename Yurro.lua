@@ -1,4 +1,4 @@
--- YURO UNIVERSAL SCRIPT
+-- YURO UNIVERSAL SCRIPT v2
 -- Right Shift - открыть/закрыть
 
 local Players = game:GetService("Players")
@@ -8,19 +8,30 @@ local TweenService = game:GetService("TweenService")
 local Camera = workspace.CurrentCamera
 
 local LocalPlayer = Players.LocalPlayer
-local AimbotEnabled = true
-local ESPEnabled = true
-local WallcheckEnabled = true
-local MAX_DISTANCE = 500
-local AIM_SMOOTHNESS = 0.15
-local AIM_FOV = 90 -- Угол обзора для аима (градусы)
+
+-- Настройки
+local Settings = {
+	AimbotEnabled = false,
+	ESPEnabled = false,
+	WallcheckEnabled = false,
+	TeamCheck = false,
+	ShowFOVCircle = false,
+	SpeedEnabled = false,
+	SpeedValue = 50,
+	AimPart = "HumanoidRootPart",
+	MAX_DISTANCE = 500,
+	AIM_SMOOTHNESS = 0.15,
+	AIM_FOV = 90
+}
 
 local AimBind = Enum.UserInputType.MouseButton2
 local AimKeyBind = nil
 local IsAiming = false
 local WaitingForBind = false
 local GuiVisible = true
+local CurrentTab = "Aimbot"
 local ESPHighlights = {}
+local OriginalSpeed = 16
 
 -- FOV Circle
 local FOVCircle = Drawing.new("Circle")
@@ -32,7 +43,7 @@ FOVCircle.Visible = true
 FOVCircle.Transparency = 0.7
 
 -- ══════════════════════════════════════════════════════════
--- GUI
+-- GUI СОЗДАНИЕ
 -- ══════════════════════════════════════════════════════════
 
 local ScreenGui = Instance.new("ScreenGui")
@@ -41,82 +52,155 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local MainContainer = Instance.new("CanvasGroup")
-MainContainer.Size = UDim2.new(0, 320, 0, 395)
-MainContainer.Position = UDim2.new(1, -340, 0, 20)
+MainContainer.Size = UDim2.new(0, 500, 0, 400)
+MainContainer.Position = UDim2.new(0.5, -250, 0.5, -200)
 MainContainer.BackgroundTransparency = 1
 MainContainer.Parent = ScreenGui
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(1, 0, 1, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
 MainFrame.Parent = MainContainer
 
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 16)
+
 local MainStroke = Instance.new("UIStroke", MainFrame)
-MainStroke.Color = Color3.fromRGB(100, 100, 255)
+MainStroke.Color = Color3.fromRGB(80, 80, 180)
 MainStroke.Thickness = 2
 
--- Title Bar
+local TopGradient = Instance.new("Frame")
+TopGradient.Size = UDim2.new(1, 0, 0, 3)
+TopGradient.Position = UDim2.new(0, 0, 0, 0)
+TopGradient.BorderSizePixel = 0
+TopGradient.Parent = MainFrame
+
+local Gradient = Instance.new("UIGradient", TopGradient)
+Gradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 100, 255)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(100, 100, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 255, 255))
+})
+
+-- ══════════════════════════════════════════════════════════
+-- TITLE BAR
+-- ══════════════════════════════════════════════════════════
+
 local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 42)
-TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+TitleBar.Size = UDim2.new(1, 0, 0, 50)
+TitleBar.Position = UDim2.new(0, 0, 0, 3)
+TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
 TitleBar.BorderSizePixel = 0
 TitleBar.Parent = MainFrame
-Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 12)
-
-local TitleFix = Instance.new("Frame")
-TitleFix.Size = UDim2.new(1, 0, 0, 15)
-TitleFix.Position = UDim2.new(0, 0, 1, -15)
-TitleFix.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
-TitleFix.BorderSizePixel = 0
-TitleFix.Parent = TitleBar
 
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(1, -50, 1, 0)
-TitleLabel.Position = UDim2.new(0, 15, 0, 0)
+TitleLabel.Size = UDim2.new(1, -100, 1, 0)
+TitleLabel.Position = UDim2.new(0, 20, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ Yuro Universal"
+TitleLabel.Text = "⚡ YURO UNIVERSAL"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = 17
-TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextSize = 20
+TitleLabel.Font = Enum.Font.GothamBlack
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TitleBar
 
-local MinimizeBtn = Instance.new("TextButton")
-MinimizeBtn.Size = UDim2.new(0, 28, 0, 28)
-MinimizeBtn.Position = UDim2.new(1, -36, 0, 7)
-MinimizeBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-MinimizeBtn.Text = "−"
-MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-MinimizeBtn.TextSize = 18
-MinimizeBtn.Font = Enum.Font.GothamBold
-MinimizeBtn.Parent = TitleBar
-Instance.new("UICorner", MinimizeBtn).CornerRadius = UDim.new(0, 6)
+local VersionLabel = Instance.new("TextLabel")
+VersionLabel.Size = UDim2.new(0, 50, 0, 20)
+VersionLabel.Position = UDim2.new(0, 200, 0.5, -10)
+VersionLabel.BackgroundTransparency = 1
+VersionLabel.Text = "v2.1"
+VersionLabel.TextColor3 = Color3.fromRGB(100, 100, 255)
+VersionLabel.TextSize = 12
+VersionLabel.Font = Enum.Font.GothamBold
+VersionLabel.Parent = TitleBar
 
-local ContentFrame = Instance.new("Frame")
-ContentFrame.Size = UDim2.new(1, -16, 1, -52)
-ContentFrame.Position = UDim2.new(0, 8, 0, 48)
-ContentFrame.BackgroundTransparency = 1
-ContentFrame.Parent = MainFrame
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 36, 0, 36)
+CloseBtn.Position = UDim2.new(1, -46, 0.5, -18)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+CloseBtn.Text = "✕"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 16
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Parent = TitleBar
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 8)
+
+local MinBtn = Instance.new("TextButton")
+MinBtn.Size = UDim2.new(0, 36, 0, 36)
+MinBtn.Position = UDim2.new(1, -88, 0.5, -18)
+MinBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+MinBtn.Text = "−"
+MinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinBtn.TextSize = 20
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.Parent = TitleBar
+Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 8)
 
 -- ══════════════════════════════════════════════════════════
--- TOGGLE ФУНКЦИЯ
+-- TAB BUTTONS
 -- ══════════════════════════════════════════════════════════
 
-local function CreateToggle(yPos, labelText, defaultState, callback)
+local TabBar = Instance.new("Frame")
+TabBar.Size = UDim2.new(1, -20, 0, 45)
+TabBar.Position = UDim2.new(0, 10, 0, 58)
+TabBar.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+TabBar.BorderSizePixel = 0
+TabBar.Parent = MainFrame
+Instance.new("UICorner", TabBar).CornerRadius = UDim.new(0, 10)
+
+local TabLayout = Instance.new("UIListLayout", TabBar)
+TabLayout.FillDirection = Enum.FillDirection.Horizontal
+TabLayout.Padding = UDim.new(0, 5)
+TabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+TabLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+local Tabs = {"Aimbot", "Visuals", "Player", "Settings"}
+local TabButtons = {}
+local TabContents = {}
+
+for i, tabName in ipairs(Tabs) do
+	local TabBtn = Instance.new("TextButton")
+	TabBtn.Size = UDim2.new(0, 110, 0, 35)
+	TabBtn.BackgroundColor3 = CurrentTab == tabName and Color3.fromRGB(80, 80, 180) or Color3.fromRGB(40, 40, 60)
+	TabBtn.Text = tabName
+	TabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TabBtn.TextSize = 14
+	TabBtn.Font = Enum.Font.GothamBold
+	TabBtn.Parent = TabBar
+	Instance.new("UICorner", TabBtn).CornerRadius = UDim.new(0, 8)
+	TabButtons[tabName] = TabBtn
+end
+
+-- ══════════════════════════════════════════════════════════
+-- CONTENT AREA
+-- ══════════════════════════════════════════════════════════
+
+local ContentArea = Instance.new("Frame")
+ContentArea.Size = UDim2.new(1, -20, 1, -120)
+ContentArea.Position = UDim2.new(0, 10, 0, 110)
+ContentArea.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+ContentArea.BorderSizePixel = 0
+ContentArea.ClipsDescendants = true
+ContentArea.Parent = MainFrame
+Instance.new("UICorner", ContentArea).CornerRadius = UDim.new(0, 10)
+
+-- ══════════════════════════════════════════════════════════
+-- UI ФУНКЦИИ
+-- ══════════════════════════════════════════════════════════
+
+local function CreateToggle(parent, yPos, labelText, settingKey)
 	local ToggleFrame = Instance.new("Frame")
-	ToggleFrame.Size = UDim2.new(1, 0, 0, 40)
-	ToggleFrame.Position = UDim2.new(0, 0, 0, yPos)
-	ToggleFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+	ToggleFrame.Size = UDim2.new(1, -20, 0, 45)
+	ToggleFrame.Position = UDim2.new(0, 10, 0, yPos)
+	ToggleFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
 	ToggleFrame.BorderSizePixel = 0
-	ToggleFrame.Parent = ContentFrame
+	ToggleFrame.Parent = parent
 	Instance.new("UICorner", ToggleFrame).CornerRadius = UDim.new(0, 8)
 
 	local Label = Instance.new("TextLabel")
 	Label.Size = UDim2.new(0.7, 0, 1, 0)
-	Label.Position = UDim2.new(0, 12, 0, 0)
+	Label.Position = UDim2.new(0, 15, 0, 0)
 	Label.BackgroundTransparency = 1
 	Label.Text = labelText
 	Label.TextColor3 = Color3.fromRGB(220, 220, 220)
@@ -126,22 +210,21 @@ local function CreateToggle(yPos, labelText, defaultState, callback)
 	Label.Parent = ToggleFrame
 
 	local SwitchBg = Instance.new("Frame")
-	SwitchBg.Size = UDim2.new(0, 46, 0, 24)
-	SwitchBg.Position = UDim2.new(1, -58, 0.5, -12)
-	SwitchBg.BackgroundColor3 = defaultState and Color3.fromRGB(80, 200, 120) or Color3.fromRGB(80, 80, 100)
+	SwitchBg.Size = UDim2.new(0, 50, 0, 26)
+	SwitchBg.Position = UDim2.new(1, -65, 0.5, -13)
+	SwitchBg.BackgroundColor3 = Settings[settingKey] and Color3.fromRGB(80, 200, 120) or Color3.fromRGB(80, 80, 100)
 	SwitchBg.BorderSizePixel = 0
 	SwitchBg.Parent = ToggleFrame
 	Instance.new("UICorner", SwitchBg).CornerRadius = UDim.new(1, 0)
 
 	local SwitchCircle = Instance.new("Frame")
-	SwitchCircle.Size = UDim2.new(0, 18, 0, 18)
-	SwitchCircle.Position = defaultState and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
+	SwitchCircle.Size = UDim2.new(0, 20, 0, 20)
+	SwitchCircle.Position = Settings[settingKey] and UDim2.new(1, -23, 0.5, -10) or UDim2.new(0, 3, 0.5, -10)
 	SwitchCircle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	SwitchCircle.BorderSizePixel = 0
 	SwitchCircle.Parent = SwitchBg
 	Instance.new("UICorner", SwitchCircle).CornerRadius = UDim.new(1, 0)
 
-	local state = defaultState
 	local ToggleBtn = Instance.new("TextButton")
 	ToggleBtn.Size = UDim2.new(1, 0, 1, 0)
 	ToggleBtn.BackgroundTransparency = 1
@@ -149,33 +232,33 @@ local function CreateToggle(yPos, labelText, defaultState, callback)
 	ToggleBtn.Parent = ToggleFrame
 
 	ToggleBtn.MouseButton1Click:Connect(function()
-		state = not state
+		Settings[settingKey] = not Settings[settingKey]
 		local ti = TweenInfo.new(0.2, Enum.EasingStyle.Quad)
-		TweenService:Create(SwitchBg, ti, {BackgroundColor3 = state and Color3.fromRGB(80, 200, 120) or Color3.fromRGB(80, 80, 100)}):Play()
-		TweenService:Create(SwitchCircle, ti, {Position = state and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)}):Play()
-		callback(state)
+		TweenService:Create(SwitchBg, ti, {BackgroundColor3 = Settings[settingKey] and Color3.fromRGB(80, 200, 120) or Color3.fromRGB(80, 80, 100)}):Play()
+		TweenService:Create(SwitchCircle, ti, {Position = Settings[settingKey] and UDim2.new(1, -23, 0.5, -10) or UDim2.new(0, 3, 0.5, -10)}):Play()
 	end)
 end
 
--- ══════════════════════════════════════════════════════════
--- SLIDER ФУНКЦИЯ
--- ══════════════════════════════════════════════════════════
-
-local function CreateSlider(yPos, labelText, minVal, maxVal, defaultVal, callback)
+local function CreateSlider(parent, yPos, labelText, minVal, maxVal, settingKey)
 	local SliderFrame = Instance.new("Frame")
-	SliderFrame.Size = UDim2.new(1, 0, 0, 50)
-	SliderFrame.Position = UDim2.new(0, 0, 0, yPos)
-	SliderFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+	SliderFrame.Size = UDim2.new(1, -20, 0, 55)
+	SliderFrame.Position = UDim2.new(0, 10, 0, yPos)
+	SliderFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
 	SliderFrame.BorderSizePixel = 0
-	SliderFrame.Parent = ContentFrame
+	SliderFrame.Parent = parent
 	Instance.new("UICorner", SliderFrame).CornerRadius = UDim.new(0, 8)
+
+	local defaultVal = Settings[settingKey]
+	if settingKey == "AIM_SMOOTHNESS" then
+		defaultVal = defaultVal * 100
+	end
 
 	local Label = Instance.new("TextLabel")
 	Label.Name = "Label"
-	Label.Size = UDim2.new(1, -16, 0, 18)
-	Label.Position = UDim2.new(0, 12, 0, 5)
+	Label.Size = UDim2.new(1, -20, 0, 20)
+	Label.Position = UDim2.new(0, 15, 0, 5)
 	Label.BackgroundTransparency = 1
-	Label.Text = labelText .. ": " .. defaultVal
+	Label.Text = labelText .. ": " .. math.floor(defaultVal)
 	Label.TextColor3 = Color3.fromRGB(220, 220, 220)
 	Label.TextSize = 13
 	Label.Font = Enum.Font.GothamSemibold
@@ -183,44 +266,35 @@ local function CreateSlider(yPos, labelText, minVal, maxVal, defaultVal, callbac
 	Label.Parent = SliderFrame
 
 	local SliderBg = Instance.new("Frame")
-	SliderBg.Name = "SliderBg"
-	SliderBg.Size = UDim2.new(1, -24, 0, 8)
-	SliderBg.Position = UDim2.new(0, 12, 0, 32)
+	SliderBg.Size = UDim2.new(1, -30, 0, 10)
+	SliderBg.Position = UDim2.new(0, 15, 0, 35)
 	SliderBg.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
 	SliderBg.BorderSizePixel = 0
 	SliderBg.Parent = SliderFrame
 	Instance.new("UICorner", SliderBg).CornerRadius = UDim.new(1, 0)
 
 	local fillPercent = (defaultVal - minVal) / (maxVal - minVal)
-	
+
 	local SliderFill = Instance.new("Frame")
-	SliderFill.Name = "Fill"
 	SliderFill.Size = UDim2.new(fillPercent, 0, 1, 0)
-	SliderFill.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+	SliderFill.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
 	SliderFill.BorderSizePixel = 0
 	SliderFill.Parent = SliderBg
 	Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(1, 0)
 
 	local SliderKnob = Instance.new("Frame")
-	SliderKnob.Name = "Knob"
-	SliderKnob.Size = UDim2.new(0, 16, 0, 16)
-	SliderKnob.Position = UDim2.new(fillPercent, -8, 0.5, -8)
+	SliderKnob.Size = UDim2.new(0, 18, 0, 18)
+	SliderKnob.Position = UDim2.new(fillPercent, -9, 0.5, -9)
 	SliderKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	SliderKnob.BorderSizePixel = 0
 	SliderKnob.Parent = SliderBg
 	Instance.new("UICorner", SliderKnob).CornerRadius = UDim.new(1, 0)
 
 	local dragging = false
-	
+
 	SliderBg.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
 			dragging = true
-		end
-	end)
-
-	SliderBg.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = false
 		end
 	end)
 
@@ -233,97 +307,217 @@ local function CreateSlider(yPos, labelText, minVal, maxVal, defaultVal, callbac
 	RunService.RenderStepped:Connect(function()
 		if dragging then
 			local mousePos = UserInputService:GetMouseLocation()
-			local sliderAbsPos = SliderBg.AbsolutePosition.X
-			local sliderAbsSize = SliderBg.AbsoluteSize.X
-			local relX = math.clamp((mousePos.X - sliderAbsPos) / sliderAbsSize, 0, 1)
-			local value = minVal + (maxVal - minVal) * relX
-			
-			if maxVal >= 10 then
-				value = math.floor(value)
-			else
-				value = math.floor(value * 100) / 100
-			end
-			
+			local relX = math.clamp((mousePos.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1)
+			local value = math.floor(minVal + (maxVal - minVal) * relX)
+
 			SliderFill.Size = UDim2.new(relX, 0, 1, 0)
-			SliderKnob.Position = UDim2.new(relX, -8, 0.5, -8)
+			SliderKnob.Position = UDim2.new(relX, -9, 0.5, -9)
 			Label.Text = labelText .. ": " .. value
-			callback(value)
+
+			if settingKey == "AIM_SMOOTHNESS" then
+				Settings[settingKey] = value / 100
+			else
+				Settings[settingKey] = value
+			end
 		end
 	end)
+end
+
+local function CreateDropdown(parent, yPos, labelText, options, settingKey)
+	local DropFrame = Instance.new("Frame")
+	DropFrame.Size = UDim2.new(1, -20, 0, 45)
+	DropFrame.Position = UDim2.new(0, 10, 0, yPos)
+	DropFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+	DropFrame.BorderSizePixel = 0
+	DropFrame.ClipsDescendants = false
+	DropFrame.Parent = parent
+	Instance.new("UICorner", DropFrame).CornerRadius = UDim.new(0, 8)
+
+	local Label = Instance.new("TextLabel")
+	Label.Size = UDim2.new(0.5, 0, 1, 0)
+	Label.Position = UDim2.new(0, 15, 0, 0)
+	Label.BackgroundTransparency = 1
+	Label.Text = labelText
+	Label.TextColor3 = Color3.fromRGB(220, 220, 220)
+	Label.TextSize = 14
+	Label.Font = Enum.Font.GothamSemibold
+	Label.TextXAlignment = Enum.TextXAlignment.Left
+	Label.Parent = DropFrame
+
+	local DropBtn = Instance.new("TextButton")
+	DropBtn.Size = UDim2.new(0, 150, 0, 32)
+	DropBtn.Position = UDim2.new(1, -165, 0.5, -16)
+	DropBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 90)
+	DropBtn.Text = Settings[settingKey] .. " ▼"
+	DropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	DropBtn.TextSize = 13
+	DropBtn.Font = Enum.Font.GothamBold
+	DropBtn.Parent = DropFrame
+	Instance.new("UICorner", DropBtn).CornerRadius = UDim.new(0, 6)
+
+	local DropList = Instance.new("Frame")
+	DropList.Size = UDim2.new(0, 150, 0, #options * 30)
+	DropList.Position = UDim2.new(1, -165, 1, 5)
+	DropList.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+	DropList.BorderSizePixel = 0
+	DropList.Visible = false
+	DropList.ZIndex = 10
+	DropList.Parent = DropFrame
+	Instance.new("UICorner", DropList).CornerRadius = UDim.new(0, 6)
+
+	for i, option in ipairs(options) do
+		local OptBtn = Instance.new("TextButton")
+		OptBtn.Size = UDim2.new(1, 0, 0, 30)
+		OptBtn.Position = UDim2.new(0, 0, 0, (i-1) * 30)
+		OptBtn.BackgroundTransparency = 1
+		OptBtn.Text = option
+		OptBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
+		OptBtn.TextSize = 13
+		OptBtn.Font = Enum.Font.GothamSemibold
+		OptBtn.ZIndex = 11
+		OptBtn.Parent = DropList
+
+		OptBtn.MouseButton1Click:Connect(function()
+			Settings[settingKey] = option
+			DropBtn.Text = option .. " ▼"
+			DropList.Visible = false
+		end)
+	end
+
+	DropBtn.MouseButton1Click:Connect(function()
+		DropList.Visible = not DropList.Visible
+	end)
+end
+
+local function CreateBindButton(parent, yPos)
+	local BindFrame = Instance.new("Frame")
+	BindFrame.Size = UDim2.new(1, -20, 0, 45)
+	BindFrame.Position = UDim2.new(0, 10, 0, yPos)
+	BindFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+	BindFrame.BorderSizePixel = 0
+	BindFrame.Parent = parent
+	Instance.new("UICorner", BindFrame).CornerRadius = UDim.new(0, 8)
+
+	local Label = Instance.new("TextLabel")
+	Label.Size = UDim2.new(0.5, 0, 1, 0)
+	Label.Position = UDim2.new(0, 15, 0, 0)
+	Label.BackgroundTransparency = 1
+	Label.Text = "🔑 Aim Bind"
+	Label.TextColor3 = Color3.fromRGB(220, 220, 220)
+	Label.TextSize = 14
+	Label.Font = Enum.Font.GothamSemibold
+	Label.TextXAlignment = Enum.TextXAlignment.Left
+	Label.Parent = BindFrame
+
+	local BindBtn = Instance.new("TextButton")
+	BindBtn.Name = "BindBtn"
+	BindBtn.Size = UDim2.new(0, 100, 0, 32)
+	BindBtn.Position = UDim2.new(1, -115, 0.5, -16)
+	BindBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 90)
+	BindBtn.Text = "RMB"
+	BindBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	BindBtn.TextSize = 13
+	BindBtn.Font = Enum.Font.GothamBold
+	BindBtn.Parent = BindFrame
+	Instance.new("UICorner", BindBtn).CornerRadius = UDim.new(0, 6)
+
+	BindBtn.MouseButton1Click:Connect(function()
+		WaitingForBind = true
+		BindBtn.Text = "..."
+		BindBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 100)
+	end)
 	
-	return SliderFrame
+	return BindBtn
 end
 
 -- ══════════════════════════════════════════════════════════
--- СОЗДАНИЕ ЭЛЕМЕНТОВ
+-- TAB CONTENTS
 -- ══════════════════════════════════════════════════════════
 
-CreateToggle(0, "🎯 Aimbot", AimbotEnabled, function(state)
-	AimbotEnabled = state
-end)
+-- AIMBOT TAB
+local AimbotTab = Instance.new("ScrollingFrame")
+AimbotTab.Size = UDim2.new(1, 0, 1, 0)
+AimbotTab.BackgroundTransparency = 1
+AimbotTab.ScrollBarThickness = 4
+AimbotTab.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 255)
+AimbotTab.CanvasSize = UDim2.new(0, 0, 0, 280)
+AimbotTab.Parent = ContentArea
+TabContents["Aimbot"] = AimbotTab
 
-CreateToggle(46, "👁️ ESP (Highlight)", ESPEnabled, function(state)
-	ESPEnabled = state
-end)
+CreateToggle(AimbotTab, 10, "🎯 Enable Aimbot", "AimbotEnabled")
+CreateSlider(AimbotTab, 65, "📏 Distance", 50, 1000, "MAX_DISTANCE")
+CreateSlider(AimbotTab, 130, "🎯 Smoothness", 5, 100, "AIM_SMOOTHNESS")
+CreateSlider(AimbotTab, 195, "👁️ FOV", 5, 180, "AIM_FOV")
 
-CreateToggle(92, "🧱 Wallcheck", WallcheckEnabled, function(state)
-	WallcheckEnabled = state
-end)
+-- VISUALS TAB
+local VisualsTab = Instance.new("ScrollingFrame")
+VisualsTab.Size = UDim2.new(1, 0, 1, 0)
+VisualsTab.BackgroundTransparency = 1
+VisualsTab.ScrollBarThickness = 4
+VisualsTab.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 255)
+VisualsTab.CanvasSize = UDim2.new(0, 0, 0, 180)
+VisualsTab.Visible = false
+VisualsTab.Parent = ContentArea
+TabContents["Visuals"] = VisualsTab
 
-CreateSlider(138, "📏 Дистанция", 50, 1000, MAX_DISTANCE, function(value)
-	MAX_DISTANCE = value
-end)
+CreateToggle(VisualsTab, 10, "👁️ Enable ESP", "ESPEnabled")
+CreateToggle(VisualsTab, 65, "🔵 Show FOV Circle", "ShowFOVCircle")
+CreateToggle(VisualsTab, 120, "🧱 Wallcheck", "WallcheckEnabled")
 
-CreateSlider(194, "🎯 Плавность", 5, 100, AIM_SMOOTHNESS * 100, function(value)
-	AIM_SMOOTHNESS = value / 100
-end)
+-- PLAYER TAB (NEW)
+local PlayerTab = Instance.new("ScrollingFrame")
+PlayerTab.Size = UDim2.new(1, 0, 1, 0)
+PlayerTab.BackgroundTransparency = 1
+PlayerTab.ScrollBarThickness = 4
+PlayerTab.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 255)
+PlayerTab.CanvasSize = UDim2.new(0, 0, 0, 130)
+PlayerTab.Visible = false
+PlayerTab.Parent = ContentArea
+TabContents["Player"] = PlayerTab
 
-CreateSlider(250, "👁️ FOV (угол)", 5, 180, AIM_FOV, function(value)
-	AIM_FOV = value
-	-- Обновляем радиус круга FOV
-	local viewportSize = Camera.ViewportSize
-	FOVCircle.Radius = (value / 180) * (viewportSize.Y / 2)
-end)
+CreateToggle(PlayerTab, 10, "⚡ Speed Hack", "SpeedEnabled")
+CreateSlider(PlayerTab, 65, "🏃 Speed Value", 16, 300, "SpeedValue")
 
--- Bind кнопка
-local BindFrame = Instance.new("Frame")
-BindFrame.Size = UDim2.new(1, 0, 0, 40)
-BindFrame.Position = UDim2.new(0, 0, 0, 306)
-BindFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
-BindFrame.BorderSizePixel = 0
-BindFrame.Parent = ContentFrame
-Instance.new("UICorner", BindFrame).CornerRadius = UDim.new(0, 8)
+-- SETTINGS TAB
+local SettingsTab = Instance.new("ScrollingFrame")
+SettingsTab.Size = UDim2.new(1, 0, 1, 0)
+SettingsTab.BackgroundTransparency = 1
+SettingsTab.ScrollBarThickness = 4
+SettingsTab.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 255)
+SettingsTab.CanvasSize = UDim2.new(0, 0, 0, 180)
+SettingsTab.Visible = false
+SettingsTab.Parent = ContentArea
+TabContents["Settings"] = SettingsTab
 
-local BindLabel = Instance.new("TextLabel")
-BindLabel.Size = UDim2.new(0.5, 0, 1, 0)
-BindLabel.Position = UDim2.new(0, 12, 0, 0)
-BindLabel.BackgroundTransparency = 1
-BindLabel.Text = "🔑 Aim Bind:"
-BindLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-BindLabel.TextSize = 14
-BindLabel.Font = Enum.Font.GothamSemibold
-BindLabel.TextXAlignment = Enum.TextXAlignment.Left
-BindLabel.Parent = BindFrame
-
-local BindButton = Instance.new("TextButton")
-BindButton.Size = UDim2.new(0, 90, 0, 28)
-BindButton.Position = UDim2.new(1, -102, 0.5, -14)
-BindButton.BackgroundColor3 = Color3.fromRGB(60, 60, 90)
-BindButton.Text = "RMB"
-BindButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-BindButton.TextSize = 13
-BindButton.Font = Enum.Font.GothamBold
-BindButton.Parent = BindFrame
-Instance.new("UICorner", BindButton).CornerRadius = UDim.new(0, 6)
-
-BindButton.MouseButton1Click:Connect(function()
-	WaitingForBind = true
-	BindButton.Text = "..."
-	BindButton.BackgroundColor3 = Color3.fromRGB(200, 100, 100)
-end)
+CreateDropdown(SettingsTab, 10, "🎯 Aim Part", {"HumanoidRootPart", "Head", "Torso"}, "AimPart")
+CreateToggle(SettingsTab, 65, "👥 Team Check", "TeamCheck")
+local BindButton = CreateBindButton(SettingsTab, 120)
 
 -- ══════════════════════════════════════════════════════════
--- DRAG & MINIMIZE
+-- TAB SWITCHING
+-- ══════════════════════════════════════════════════════════
+
+local function SwitchTab(tabName)
+	CurrentTab = tabName
+	for name, btn in pairs(TabButtons) do
+		local isActive = name == tabName
+		TweenService:Create(btn, TweenInfo.new(0.2), {
+			BackgroundColor3 = isActive and Color3.fromRGB(80, 80, 180) or Color3.fromRGB(40, 40, 60)
+		}):Play()
+	end
+	for name, content in pairs(TabContents) do
+		content.Visible = name == tabName
+	end
+end
+
+for name, btn in pairs(TabButtons) do
+	btn.MouseButton1Click:Connect(function()
+		SwitchTab(name)
+	end)
+end
+
+-- ══════════════════════════════════════════════════════════
+-- DRAG & CLOSE
 -- ══════════════════════════════════════════════════════════
 
 local dragging, dragInput, dragStart, startPos = false, nil, nil, nil
@@ -354,11 +548,18 @@ UserInputService.InputChanged:Connect(function(input)
 	end
 end)
 
+CloseBtn.MouseButton1Click:Connect(function()
+	GuiVisible = false
+	MainContainer.Visible = false
+end)
+
 local minimized = false
-MinimizeBtn.MouseButton1Click:Connect(function()
+MinBtn.MouseButton1Click:Connect(function()
 	minimized = not minimized
-	TweenService:Create(MainContainer, TweenInfo.new(0.25), {Size = minimized and UDim2.new(0, 320, 0, 42) or UDim2.new(0, 320, 0, 395)}):Play()
-	MinimizeBtn.Text = minimized and "+" or "−"
+	TweenService:Create(MainContainer, TweenInfo.new(0.25), {
+		Size = minimized and UDim2.new(0, 500, 0, 53) or UDim2.new(0, 500, 0, 400)
+	}):Play()
+	MinBtn.Text = minimized and "+" or "−"
 end)
 
 -- ══════════════════════════════════════════════════════════
@@ -383,20 +584,14 @@ local function IsVisible(targetPos, targetChar)
 	return result == nil
 end
 
--- Проверка находится ли игрок в пределах FOV
 local function IsInFOV(targetPos)
 	local screenPos, onScreen = Camera:WorldToScreenPoint(targetPos)
-	
-	if not onScreen then
-		return false, math.huge
-	end
+	if not onScreen then return false, math.huge end
 	
 	local screenCenter = Camera.ViewportSize / 2
 	local targetScreen = Vector2.new(screenPos.X, screenPos.Y)
 	local distanceFromCenter = (targetScreen - screenCenter).Magnitude
-	
-	-- Радиус FOV в пикселях
-	local fovRadius = (AIM_FOV / 180) * (Camera.ViewportSize.Y / 2)
+	local fovRadius = (Settings.AIM_FOV / 180) * (Camera.ViewportSize.Y / 2)
 	
 	return distanceFromCenter <= fovRadius, distanceFromCenter
 end
@@ -412,25 +607,25 @@ local function GetNearestPlayer()
 	
 	for _, player in pairs(Players:GetPlayers()) do
 		if player ~= LocalPlayer and player.Character then
-			local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+			if Settings.TeamCheck and player.Team == LocalPlayer.Team then
+				continue
+			end
+			
+			local aimPart = player.Character:FindFirstChild(Settings.AimPart) or player.Character:FindFirstChild("HumanoidRootPart")
 			local hum = player.Character:FindFirstChild("Humanoid")
 			
-			if hrp and hum and hum.Health > 0 then
-				local dist = (myPos - hrp.Position).Magnitude
+			if aimPart and hum and hum.Health > 0 then
+				local dist = (myPos - aimPart.Position).Magnitude
 				
-				-- Проверка дистанции
-				if dist <= MAX_DISTANCE then
-					-- Проверка FOV (не за спиной)
-					local inFOV, screenDist = IsInFOV(hrp.Position)
+				if dist <= Settings.MAX_DISTANCE then
+					local inFOV, screenDist = IsInFOV(aimPart.Position)
 					
 					if inFOV then
-						-- Проверка стен
 						local canSee = true
-						if WallcheckEnabled then
-							canSee = IsVisible(hrp.Position, player.Character)
+						if Settings.WallcheckEnabled then
+							canSee = IsVisible(aimPart.Position, player.Character)
 						end
 						
-						-- Выбираем ближайшего к центру экрана
 						if canSee and screenDist < closestScreenDist then
 							closestScreenDist = screenDist
 							closest = player
@@ -445,6 +640,39 @@ local function GetNearestPlayer()
 end
 
 -- ══════════════════════════════════════════════════════════
+-- SPEEDHACK
+-- ══════════════════════════════════════════════════════════
+
+local function UpdateSpeed()
+	if LocalPlayer.Character then
+		local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+		if humanoid then
+			if Settings.SpeedEnabled then
+				humanoid.WalkSpeed = Settings.SpeedValue
+			else
+				humanoid.WalkSpeed = OriginalSpeed
+			end
+		end
+	end
+end
+
+spawn(function()
+	while true do
+		UpdateSpeed()
+		wait(0.1)
+	end
+end)
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+	wait(0.5)
+	local humanoid = char:FindFirstChild("Humanoid")
+	if humanoid then
+		OriginalSpeed = humanoid.WalkSpeed
+	end
+	UpdateSpeed()
+end)
+
+-- ══════════════════════════════════════════════════════════
 -- INPUT
 -- ══════════════════════════════════════════════════════════
 
@@ -453,7 +681,18 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	
 	if input.KeyCode == Enum.KeyCode.RightShift then
 		GuiVisible = not GuiVisible
-		TweenService:Create(MainContainer, TweenInfo.new(0.2), {GroupTransparency = GuiVisible and 0 or 1}):Play()
+		if GuiVisible then
+			MainContainer.Visible = true
+			MainContainer.GroupTransparency = 1
+			TweenService:Create(MainContainer, TweenInfo.new(0.2), {GroupTransparency = 0}):Play()
+		else
+			TweenService:Create(MainContainer, TweenInfo.new(0.2), {GroupTransparency = 1}):Play()
+			task.delay(0.2, function()
+				if not GuiVisible then
+					MainContainer.Visible = false
+				end
+			end)
+		end
 		return
 	end
 	
@@ -489,32 +728,30 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 -- ══════════════════════════════════════════════════════════
--- FOV CIRCLE UPDATE
+-- FOV CIRCLE
 -- ══════════════════════════════════════════════════════════
 
 RunService.RenderStepped:Connect(function()
-	-- Обновляем позицию круга FOV
 	local viewportSize = Camera.ViewportSize
 	FOVCircle.Position = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
-	FOVCircle.Radius = (AIM_FOV / 180) * (viewportSize.Y / 2)
-	FOVCircle.Visible = AimbotEnabled
+	FOVCircle.Radius = (Settings.AIM_FOV / 180) * (viewportSize.Y / 2)
+	FOVCircle.Visible = Settings.AimbotEnabled and Settings.ShowFOVCircle
 end)
 
 -- ══════════════════════════════════════════════════════════
--- AIMBOT (ПЛАВНЫЙ + FOV)
+-- AIMBOT
 -- ══════════════════════════════════════════════════════════
 
 RunService.Heartbeat:Connect(function()
-	if AimbotEnabled and IsAiming then
+	if Settings.AimbotEnabled and IsAiming then
 		local target = GetNearestPlayer()
 		if target and target.Character then
-			local hrp = target.Character:FindFirstChild("HumanoidRootPart")
-			if hrp then
-				local targetPos = hrp.Position
+			local aimPart = target.Character:FindFirstChild(Settings.AimPart) or target.Character:FindFirstChild("HumanoidRootPart")
+			if aimPart then
+				local targetPos = aimPart.Position
 				local currentCF = Camera.CFrame
 				local targetCF = CFrame.lookAt(currentCF.Position, targetPos)
-				
-				local smoothing = math.clamp(AIM_SMOOTHNESS, 0.05, 1)
+				local smoothing = math.clamp(Settings.AIM_SMOOTHNESS, 0.05, 1)
 				Camera.CFrame = currentCF:Lerp(targetCF, smoothing)
 			end
 		end
@@ -536,7 +773,15 @@ local function UpdateESP()
 				end
 			end
 			
-			if ESPEnabled and player.Character then
+			if Settings.ESPEnabled and player.Character then
+				if Settings.TeamCheck and player.Team == LocalPlayer.Team then
+					if ESPHighlights[player] then
+						ESPHighlights[player]:Destroy()
+						ESPHighlights[player] = nil
+					end
+					continue
+				end
+				
 				local hum = player.Character:FindFirstChild("Humanoid")
 				local hrp = player.Character:FindFirstChild("HumanoidRootPart")
 				
@@ -599,11 +844,10 @@ Players.PlayerRemoving:Connect(function(player)
 	end
 end)
 
--- Удаляем круг при выходе
 game:BindToClose(function()
 	FOVCircle:Remove()
 end)
 
-print("✅ Yuro Universal Script загружен!")
+print("✅ Yuro Universal v2.1 загружен!")
 print("📌 [Right Shift] - открыть/закрыть меню")
-print("📌 FOV - угол обзора аима (игнорирует игроков за спиной)")
+print("⚡ Speed Hack добавлен в таб Player")
