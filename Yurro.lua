@@ -1,4 +1,4 @@
--- YURO UNIVERSAL SCRIPT v2
+-- YURO UNIVERSAL SCRIPT v2.1
 -- Right Shift - открыть/закрыть
 
 local Players = game:GetService("Players")
@@ -11,13 +11,13 @@ local LocalPlayer = Players.LocalPlayer
 
 -- Настройки
 local Settings = {
-	AimbotEnabled = false,
-	ESPEnabled = false,
-	WallcheckEnabled = false,
+	AimbotEnabled = true,
+	ESPEnabled = true,
+	WallcheckEnabled = true,
 	TeamCheck = false,
 	ShowFOVCircle = false,
 	SpeedEnabled = false,
-	SpeedValue = 50,
+	SpeedValue = 32,
 	AimPart = "HumanoidRootPart",
 	MAX_DISTANCE = 500,
 	AIM_SMOOTHNESS = 0.15,
@@ -39,7 +39,7 @@ FOVCircle.Thickness = 2
 FOVCircle.Radius = 100
 FOVCircle.Filled = false
 FOVCircle.Color = Color3.fromRGB(100, 100, 255)
-FOVCircle.Visible = true
+FOVCircle.Visible = false
 FOVCircle.Transparency = 0.7
 
 -- ══════════════════════════════════════════════════════════
@@ -49,11 +49,19 @@ FOVCircle.Transparency = 0.7
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "YuroScript"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.DisplayOrder = 999
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local success = pcall(function()
+	ScreenGui.Parent = game:GetService("CoreGui")
+end)
+if not success then
+	ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
 
 local MainContainer = Instance.new("CanvasGroup")
 MainContainer.Size = UDim2.new(0, 500, 0, 400)
-MainContainer.Position = UDim2.new(0.5, -250, 0.5, -200)
+MainContainer.Position = UDim2.new(0.5, -250, 1, -420) -- Снизу экрана
 MainContainer.BackgroundTransparency = 1
 MainContainer.Parent = ScreenGui
 
@@ -464,7 +472,7 @@ CreateToggle(VisualsTab, 10, "👁️ Enable ESP", "ESPEnabled")
 CreateToggle(VisualsTab, 65, "🔵 Show FOV Circle", "ShowFOVCircle")
 CreateToggle(VisualsTab, 120, "🧱 Wallcheck", "WallcheckEnabled")
 
--- PLAYER TAB (NEW)
+-- PLAYER TAB
 local PlayerTab = Instance.new("ScrollingFrame")
 PlayerTab.Size = UDim2.new(1, 0, 1, 0)
 PlayerTab.BackgroundTransparency = 1
@@ -550,7 +558,12 @@ end)
 
 CloseBtn.MouseButton1Click:Connect(function()
 	GuiVisible = false
-	MainContainer.Visible = false
+	TweenService:Create(MainContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+		Position = UDim2.new(0.5, -250, 1, 50)
+	}):Play()
+	task.delay(0.3, function()
+		MainContainer.Visible = false
+	end)
 end)
 
 local minimized = false
@@ -640,7 +653,7 @@ local function GetNearestPlayer()
 end
 
 -- ══════════════════════════════════════════════════════════
--- SPEEDHACK
+-- SPEEDHACK (WalkSpeed метод)
 -- ══════════════════════════════════════════════════════════
 
 local function UpdateSpeed()
@@ -673,7 +686,7 @@ LocalPlayer.CharacterAdded:Connect(function(char)
 end)
 
 -- ══════════════════════════════════════════════════════════
--- INPUT
+-- INPUT (МЕНЮ ВЫЕЗЖАЕТ СНИЗУ)
 -- ══════════════════════════════════════════════════════════
 
 UserInputService.InputBegan:Connect(function(input, processed)
@@ -683,11 +696,15 @@ UserInputService.InputBegan:Connect(function(input, processed)
 		GuiVisible = not GuiVisible
 		if GuiVisible then
 			MainContainer.Visible = true
-			MainContainer.GroupTransparency = 1
-			TweenService:Create(MainContainer, TweenInfo.new(0.2), {GroupTransparency = 0}):Play()
+			MainContainer.Position = UDim2.new(0.5, -250, 1, 50) -- Начинаем за экраном снизу
+			TweenService:Create(MainContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+				Position = UDim2.new(0.5, -250, 1, -420) -- Выезжает снизу
+			}):Play()
 		else
-			TweenService:Create(MainContainer, TweenInfo.new(0.2), {GroupTransparency = 1}):Play()
-			task.delay(0.2, function()
+			TweenService:Create(MainContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+				Position = UDim2.new(0.5, -250, 1, 50) -- Уезжает вниз
+			}):Play()
+			task.delay(0.3, function()
 				if not GuiVisible then
 					MainContainer.Visible = false
 				end
@@ -850,4 +867,4 @@ end)
 
 print("✅ Yuro Universal v2.1 загружен!")
 print("📌 [Right Shift] - открыть/закрыть меню")
-print("⚡ Speed Hack добавлен в таб Player")
+print("📌 Меню выезжает снизу экрана")
